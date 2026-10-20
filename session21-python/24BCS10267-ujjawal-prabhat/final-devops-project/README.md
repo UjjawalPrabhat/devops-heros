@@ -9,8 +9,8 @@
 | Images | `ghcr.io/ujjawalprabhat/stockpilot-backend`, `ghcr.io/ujjawalprabhat/stockpilot-frontend` |
 
 Every command output in this README was copied from a real run. The complete
-files are in [`docs/outputs/`](docs/outputs/). Sections marked *(pending: CI run)*
-or *(pending: AWS apply)* are not done yet and contain no results.
+files are in [`docs/outputs/`](docs/outputs/). Sections marked *(pending: AWS apply)*
+are not done yet and contain no results.
 
 ## Contents
 1. [Project overview](#1-project-overview)
@@ -630,9 +630,90 @@ Status: Downloaded newer image for rhysd/actionlint:1.7.12
 actionlint: no problems found
 ```
 
-### Pipeline run (pending: CI run)
+### Pipeline run
 
-### GHCR images with SHA tags (pending: CI run)
+Run [39379996571](https://github.com/UjjawalPrabhat/devops-heros/actions/runs/39379996571)
+(push of commit `a6a18fe` to `24BCS10267/session-21`): all 13 jobs succeeded.
+Excerpts from the run log ([`docs/outputs/ci-run-39379996571.txt`](docs/outputs/ci-run-39379996571.txt)):
+
+```text
+$ gh run view 39379996571 -R UjjawalPrabhat/devops-heros --json url,event,headBranch,headSha,conclusion --jq '.url, .event+" "+.headBranch+" "+.headSha, .conclusion'
+https://github.com/UjjawalPrabhat/devops-heros/actions/runs/39379996571
+push 24BCS10267/session-21 a6a18febabde5e45bc4cdc026626eb9fe6841949
+success
+
+$ gh run view 39379996571 -R UjjawalPrabhat/devops-heros --json jobs --jq '.jobs[] | .conclusion+"  "+.name'
+success  SAST (Semgrep)
+success  SCA (Trivy fs)
+success  Secret scan (Gitleaks)
+success  Test (pytest) + frontend build + helm lint
+success  Security gate
+success  Build + Trivy backend (amd64)
+success  Build + Trivy frontend (amd64)
+success  Build + Trivy frontend (arm64)
+success  Build + Trivy backend (arm64)
+success  Publish backend:<git sha> to GHCR
+success  Publish frontend:<git sha> to GHCR
+success  Deploy with Helm to kind + smoke test
+success  Promote to GitOps (values-gitops.yaml)
+```
+
+```text
+$ awk -F'\t' '$2=="pytest" && /passed in/ {print substr($3,30)}' run.log
+============================== 15 passed in 0.26s ==============================
+
+$ awk -F'\t' '$1=="Security gate" && $3 ~ /Z (test|sast|sca|secret-scan)=|Gate passed$/ {print substr($3,30)}' run.log
+test=success
+sast=success
+sca=success
+secret-scan=success
+Gate passed
+
+$ awk -F'\t' '$1 ~ /^Deploy/ && $3 ~ /Z \+ curl|STATUS: deployed/ {print substr($3,30,110)}' run.log
+STATUS: deployed
++ curl -sf localhost:8080/
++ curl -sf localhost:8080/api/info
++ curl -sf -X POST localhost:8080/api/items -H 'Content-Type: application/json' -d '{"sku":"CI-SMOKE","name":"
++ curl -sf localhost:8080/api/items/low-stock
++ curl -sf localhost:8000/ready
++ curl -sf localhost:8000/metrics
+```
+
+### GHCR images with SHA tags
+
+Both images are public multi-arch indexes tagged only with the full commit SHA.
+Checked without logging in ([`docs/outputs/ghcr-images.txt`](docs/outputs/ghcr-images.txt)):
+
+```text
+# no docker login: the packages are public
+$ docker logout ghcr.io >/dev/null 2>&1; docker buildx imagetools inspect ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949
+Name:      ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:93459a8a4fb3d0d7a965dabb44efa4888b8d24b731e05789b25a75d18262881a
+           
+Manifests: 
+  Name:      ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949@sha256:8fc10a9f39804a7cba4756882c7ed80f84822455cbd71231953a507d246ebf1c
+  MediaType: application/vnd.oci.image.manifest.v1+json
+  Platform:  linux/amd64
+             
+  Name:      ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949@sha256:f8cfd4a4335e0a3bed31307dd69f55b8eaf0cc9e742e8cedbe7ca239cc6cf04a
+  MediaType: application/vnd.oci.image.manifest.v1+json
+  Platform:  linux/arm64
+
+$ docker buildx imagetools inspect ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949
+Name:      ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949
+MediaType: application/vnd.oci.image.index.v1+json
+Digest:    sha256:a395371fa56987cbb2b2fb027aab36659ff9ed2449545935c19164797eb7d738
+           
+Manifests: 
+  Name:      ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949@sha256:99d43ab07b2cbf970551dd6d08c6da414dd5249aefb408d837ad7cf6e6178c89
+  MediaType: application/vnd.oci.image.manifest.v1+json
+  Platform:  linux/amd64
+             
+  Name:      ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949@sha256:a4ed4cd85f8a2018a7d4643fb707e6b966b5c9bd8b0441041e72090d85167543
+  MediaType: application/vnd.oci.image.manifest.v1+json
+  Platform:  linux/arm64
+```
 
 ---
 
@@ -738,7 +819,23 @@ Custom Semgrep rules, all four run against a deliberately bad file
 `stockpilot-no-wildcard-cors-with-credentials` and `stockpilot-no-debug-uvicorn`
 each reported their line (4 findings).
 
-### Trivy in the pipeline (pending: CI run)
+### Trivy in the pipeline
+
+Each of the four build jobs scanned the image it had just built, before pushing
+it. All reported 0 fixable HIGH/CRITICAL findings, and the SCA job found none in
+the dependency files:
+
+```text
+$ awk -F'\t' '$2 ~ /^Trivy image scan/ && /│ stockpilot-/ {print $1 ":  " substr($3,30)}' run.log
+Build + Trivy backend (amd64):  │ stockpilot-backend:scan (debian 13.7)                                            │   debian   │        0        │
+Build + Trivy frontend (amd64):  │ stockpilot-frontend:scan (alpine 3.23.4) │ alpine │        0        │
+Build + Trivy frontend (arm64):  │ stockpilot-frontend:scan (alpine 3.23.4) │ alpine │        0        │
+Build + Trivy backend (arm64):  │ stockpilot-backend:scan (debian 13.7)                                            │   debian   │        0        │
+
+$ awk -F'\t' '$1=="SCA (Trivy fs)" && /│ (backend|frontend)\// {print substr($3,30)}' run.log
+│ backend/requirements.txt   │ pip  │        0        │
+│ frontend/package-lock.json │ npm  │        0        │
+```
 
 ---
 
@@ -946,12 +1043,114 @@ How a commit reaches the cluster:
    (a commit made with `GITHUB_TOKEN` does not start another run).
 4. Argo CD sees the new commit and rolls out the new images.
 
-Before the first pipeline run, `values-gitops.yaml` holds the tag
-`pending-first-ci-run`, which does not exist. Note that GHCR packages created
-by a workflow are private at first: either make them public or add an
-`imagePullSecrets` entry so the kind cluster can pull them.
+Both GHCR packages are public (published from this public repository), so the
+cluster pulls them without credentials (see the anonymous `imagetools inspect` above).
 
-### Argo CD sync of a pipeline-built SHA (pending: CI run)
+### Argo CD sync of a pipeline-built SHA
+
+The promote job of run 39379996571 committed the new tag as `ee4c529`
+([`docs/outputs/ghcr-images.txt`](docs/outputs/ghcr-images.txt)):
+
+```text
+$ awk -F'\t' '$1 ~ /^Promote/ && $3 ~ /Z [-+]  tag:|Z \[24BCS10267/ {print substr($3,30)}' run.log
+-  tag: pending-first-ci-run
++  tag: a6a18febabde5e45bc4cdc026626eb9fe6841949
+[24BCS10267/session-21 ee4c529] gitops: promote stockpilot images to a6a18fe
+```
+
+```text
+$ git log -1 --format='%h %an: %s' ee4c529
+ee4c529 github-actions[bot]: gitops: promote stockpilot images to a6a18fe
+
+$ git show ee4c529 --format= -- helm/stockpilot/values-gitops.yaml
+diff --git a/session21-python/24BCS10267-ujjawal-prabhat/final-devops-project/helm/stockpilot/values-gitops.yaml b/session21-python/24BCS10267-ujjawal-prabhat/final-devops-project/helm/stockpilot/values-gitops.yaml
+index 74fe3c4..f5dabd2 100644
+--- a/session21-python/24BCS10267-ujjawal-prabhat/final-devops-project/helm/stockpilot/values-gitops.yaml
++++ b/session21-python/24BCS10267-ujjawal-prabhat/final-devops-project/helm/stockpilot/values-gitops.yaml
+@@ -1,7 +1,7 @@
+ # Argo CD environment (Application final-stockpilot-24bcs10267, namespace final-gitops).
+ # image.tag is rewritten by the CI job "gitops-promote" after both images are pushed.
+ image:
+-  tag: pending-first-ci-run
++  tag: a6a18febabde5e45bc4cdc026626eb9fe6841949
+ 
+ config:
+   APP_ENV: gitops
+```
+
+The Argo CD Application of the previous project layout (value file
+`values-prod.yaml`, which no longer exists) was deleted and the environment
+bootstrapped again ([`docs/outputs/gitops-argocd.txt`](docs/outputs/gitops-argocd.txt)):
+
+```text
+# remove the Argo CD app of the previous layout (finalizer prunes its resources)
+$ kubectl -n argocd delete application final-stockpilot-24bcs10267 --wait=true --timeout=180s
+application.argoproj.io "final-stockpilot-24bcs10267" deleted from argocd namespace
+
+# leftovers of the old release: PVC (resource-policy keep) and the old out-of-band Secret
+$ kubectl -n final-gitops delete pvc stockpilot-postgres-data && kubectl -n final-gitops delete secret stockpilot-db-prod
+persistentvolumeclaim "stockpilot-postgres-data" deleted from final-gitops namespace
+secret "stockpilot-db-prod" deleted from final-gitops namespace
+
+$ scripts/gitops-bootstrap.sh
+$ kubectl create namespace final-gitops
+Error from server (AlreadyExists): namespaces "final-gitops" already exists
+
+$ kubectl -n final-gitops create secret generic stockpilot-db-gitops --from-literal=DB_USER=stockpilot --from-literal=DB_PASSWORD="$(openssl rand -hex 16)"
+secret/stockpilot-db-gitops created
+
+$ kubectl apply -f gitops/application.yaml
+Warning: metadata.finalizers: "resources-finalizer.argocd.argoproj.io": prefer a domain-qualified finalizer name including a path (/) to avoid accidental conflicts with other finalizer writers
+application.argoproj.io/final-stockpilot-24bcs10267 created
+```
+
+After Argo CD finished the sync (polled until `Synced/Healthy`), the
+environment runs the images of commit `a6a18fe` at Git revision `ee4c529`:
+
+```text
+# (waited until Synced/Healthy)
+$ kubectl -n argocd get application final-stockpilot-24bcs10267 -o wide
+NAME                          SYNC STATUS   HEALTH STATUS   REVISION                                   PROJECT
+final-stockpilot-24bcs10267   Synced        Healthy         ee4c5293077606853f3567ec269ed680e89d14c4   default
+
+$ kubectl -n argocd get application final-stockpilot-24bcs10267 -o jsonpath='{.status.operationState.phase} {.status.operationState.message}{"\n"}{.status.summary.images}{"\n"}'
+Succeeded successfully synced (all tasks run)
+["ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949","ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949","postgres:17-alpine"]
+
+$ kubectl -n final-gitops get pods -o custom-columns=POD:.metadata.name,IMAGE:.spec.containers[0].image,NODE:.spec.nodeName,STATUS:.status.phase
+POD                                    IMAGE                                                                                 NODE                   STATUS
+stockpilot-backend-67f795df56-2g885    ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949    devops-heros-worker    Running
+stockpilot-backend-67f795df56-9phs9    ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949    devops-heros-worker2   Running
+stockpilot-frontend-66c85fd847-bjxgl   ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949   devops-heros-worker    Running
+stockpilot-frontend-66c85fd847-qt76f   ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949   devops-heros-worker2   Running
+stockpilot-postgres-7bfff75575-hmb87   postgres:17-alpine                                                                    devops-heros-worker2   Running
+```
+
+Through the Ingress of the GitOps environment:
+
+```text
+$ HOST=stockpilot-gitops.local scripts/smoke-ingress.sh
+$ curl -s -H 'Host: stockpilot-gitops.local' -o /dev/null -w %{http_code} %{content_type}\n localhost:8081/
+200 text/html
+
+$ curl -s -H 'Host: stockpilot-gitops.local' localhost:8081/api/info
+{"service":"StockPilot","version":"a6a18febabde5e45bc4cdc026626eb9fe6841949","env":"gitops"}
+
+$ curl -s -H 'Host: stockpilot-gitops.local' -X POST -H Content-Type: application/json localhost:8081/api/items -d {"sku":"SMOKE-1","name":"smoke test item","quantity":3}
+{"id":1,"sku":"SMOKE-1","name":"smoke test item","location":"MAIN","quantity":3,"reorder_level":10,"unit_price_paise":0,"low_stock":true,"updated_at":"2026-10-20T06:27:53.326081Z"}
+
+$ curl -s -H 'Host: stockpilot-gitops.local' -X PUT -H Content-Type: application/json localhost:8081/api/items/1 -d {"quantity":30}
+{"id":1,"sku":"SMOKE-1","name":"smoke test item","location":"MAIN","quantity":30,"reorder_level":10,"unit_price_paise":0,"low_stock":false,"updated_at":"2026-10-20T06:27:53.390332Z"}
+
+$ curl -s -H 'Host: stockpilot-gitops.local' localhost:8081/api/items
+[{"id":1,"sku":"SMOKE-1","name":"smoke test item","location":"MAIN","quantity":30,"reorder_level":10,"unit_price_paise":0,"low_stock":false,"updated_at":"2026-10-20T06:27:53.390332Z"}]
+
+$ curl -s -H 'Host: stockpilot-gitops.local' -X DELETE -o /dev/null -w %{http_code}\n localhost:8081/api/items/1
+204
+
+$ curl -s -H 'Host: stockpilot-gitops.local' localhost:8081/api/summary
+{"total_items":0,"total_units":0,"low_stock_items":0,"inventory_value_paise":0}
+```
 
 ---
 
@@ -1167,8 +1366,26 @@ the chart passes the full name `stockpilot-backend.<namespace>.svc.cluster.local
 In the earlier version CI built amd64-only images; Argo CD deployed one to this
 arm64 kind cluster and the container exited with `exec /opt/venv/bin/uvicorn:
 exec format error` (exit code 255). The pipeline now builds each image on an
-amd64 and an arm64 runner and publishes one multi-arch tag.
-Verification on GHCR: *(pending: CI run)*.
+amd64 and an arm64 runner and publishes one multi-arch tag. Verification: the
+tag from run 39379996571 is an index with `linux/amd64` and `linux/arm64`
+manifests (section 9), and Argo CD runs it on the arm64 nodes
+([`docs/outputs/gitops-argocd.txt`](docs/outputs/gitops-argocd.txt)):
+
+```text
+$ kubectl -n final-gitops get pods -o custom-columns=POD:.metadata.name,IMAGE:.spec.containers[0].image,NODE:.spec.nodeName,STATUS:.status.phase
+POD                                    IMAGE                                                                                 NODE                   STATUS
+stockpilot-backend-67f795df56-2g885    ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949    devops-heros-worker    Running
+stockpilot-backend-67f795df56-9phs9    ghcr.io/ujjawalprabhat/stockpilot-backend:a6a18febabde5e45bc4cdc026626eb9fe6841949    devops-heros-worker2   Running
+stockpilot-frontend-66c85fd847-bjxgl   ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949   devops-heros-worker    Running
+stockpilot-frontend-66c85fd847-qt76f   ghcr.io/ujjawalprabhat/stockpilot-frontend:a6a18febabde5e45bc4cdc026626eb9fe6841949   devops-heros-worker2   Running
+stockpilot-postgres-7bfff75575-hmb87   postgres:17-alpine                                                                    devops-heros-worker2   Running
+
+$ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.architecture
+NAME                         ARCH
+devops-heros-control-plane   arm64
+devops-heros-worker          arm64
+devops-heros-worker2         arm64
+```
 
 ---
 
