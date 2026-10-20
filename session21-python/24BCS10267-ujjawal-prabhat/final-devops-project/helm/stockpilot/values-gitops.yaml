@@ -1,7 +1,7 @@
 # Argo CD environment (Application final-stockpilot-24bcs10267, namespace final-gitops).
 # image.tag is rewritten by the CI job "gitops-promote" after both images are pushed.
 image:
-  tag: pending-first-ci-run
+  tag: a6a18febabde5e45bc4cdc026626eb9fe6841949
 
 config:
   APP_ENV: gitops
